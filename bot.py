@@ -350,6 +350,7 @@ def main() -> None:
         return web.Response(status=200)
 
     async def on_startup(_app: web.Application) -> None:
+        await app.initialize()
         await app.bot.set_webhook(webhook_url, secret_token=WEBHOOK_SECRET)
         logger.info(f"Webhook set to {webhook_url}")
         asyncio.create_task(app.start())
