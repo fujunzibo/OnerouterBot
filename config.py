@@ -1,4 +1,5 @@
 import os
+import secrets
 from pathlib import Path
 from typing import Optional
 
@@ -29,6 +30,11 @@ DATABASE_PATH = Path(os.environ.get("DATABASE_PATH", str(ROOT / "data" / "bot.db
 TELEGRAM_TRUST_ENV = _env_bool("TELEGRAM_TRUST_ENV", True)
 # 显式代理，例如 http://127.0.0.1:7890 或 socks5://127.0.0.1:7890（socks 需 pip install "python-telegram-bot[socks]"）
 TELEGRAM_PROXY: Optional[str] = os.environ.get("TELEGRAM_PROXY", "").strip() or None
+
+WEBHOOK_HOST = os.environ.get("WEBHOOK_HOST", "").strip()
+WEBHOOK_PORT = int(os.environ.get("WEBHOOK_PORT", "8080").strip())
+WEBHOOK_PATH = os.environ.get("WEBHOOK_PATH", "/webhook").strip()
+WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "").strip() or secrets.token_hex(16)
 
 
 def create_telegram_http_request():

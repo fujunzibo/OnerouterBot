@@ -1,6 +1,9 @@
+import asyncio
 import logging
 import re
 from typing import Optional
+
+from aiohttp import web
 
 from telegram import LabeledPrice, Update
 from telegram.ext import (
@@ -20,6 +23,10 @@ from config import (
     PRODUCTS,
     TELEGRAM_PROXY,
     TELEGRAM_TRUST_ENV,
+    WEBHOOK_HOST,
+    WEBHOOK_PORT,
+    WEBHOOK_PATH,
+    WEBHOOK_SECRET,
     create_telegram_http_request,
 )
 from db import (
@@ -299,7 +306,12 @@ def main() -> None:
     if not BOT_TOKEN:
         raise SystemExit("请设置环境变量 BOT_TOKEN")
 
+    if not WEBHOOK_HOST:
+        raise SystemExit("请设置环境变量 WEBHOOK_HOST（例如 https://yourdomain.com）")
+
     init_db()
+
+    webhook_url = f"{WEBHOOK_HOST.rstrip('/')}{WEBHOOK_PATH}"
 
     http_request = create_telegram_http_request()
     app = (
@@ -322,12 +334,40 @@ def main() -> None:
     )
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
 
+    async def webhook_handler(request: web.Request) -> web.Response:
+        if request.method != "POST":
+            return web.Response(status=405)
+        if request.path != WEBHOOK_PATH:
+            return web.Response(status=404)
+        secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
+        if secret != WEBHOOK_SECRET:
+            return web.Response(status=403)
+        try:
+            data = await request.json()
+        except Exception:
+            return web.Response(status=400)
+        await app.update_queue.put(data)
+        return web.Response(status=200)
+
+    async def on_startup(app: web.Application) -> None:
+        await app.bot.set_webhook(webhook_url, secret_token=WEBHOOK_SECRET)
+        logger.info(f"Webhook set to {webhook_url}")
+
+    async def on_shutdown(app: web.Application) -> None:
+        await app.bot.delete_webhook()
+        logger.info("Webhook deleted")
+
+    server = web.Application()
+    server.on_startup.append(on_startup)
+    server.on_shutdown.append(on_shutdown)
+    server.router.add_post(WEBHOOK_PATH, webhook_handler)
+
     logger.info(
-        "Bot starting… (TELEGRAM_TRUST_ENV=%s, TELEGRAM_PROXY=%s)",
+        "Bot starting in webhook mode… (TELEGRAM_TRUST_ENV=%s, TELEGRAM_PROXY=%s)",
         TELEGRAM_TRUST_ENV,
         TELEGRAM_PROXY or "none",
     )
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+    web.run_app(server, host="0.0.0.0", port=WEBHOOK_PORT, print=None)
 
 
 if __name__ == "__main__":
