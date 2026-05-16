@@ -352,8 +352,10 @@ def main() -> None:
     async def on_startup(_app: web.Application) -> None:
         await app.bot.set_webhook(webhook_url, secret_token=WEBHOOK_SECRET)
         logger.info(f"Webhook set to {webhook_url}")
+        asyncio.create_task(app.start())
 
     async def on_shutdown(_app: web.Application) -> None:
+        await app.stop()
         await app.bot.delete_webhook()
         logger.info("Webhook deleted")
 
