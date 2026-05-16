@@ -349,11 +349,11 @@ def main() -> None:
         await app.update_queue.put(data)
         return web.Response(status=200)
 
-    async def on_startup(app: web.Application) -> None:
+    async def on_startup(_app: web.Application) -> None:
         await app.bot.set_webhook(webhook_url, secret_token=WEBHOOK_SECRET)
         logger.info(f"Webhook set to {webhook_url}")
 
-    async def on_shutdown(app: web.Application) -> None:
+    async def on_shutdown(_app: web.Application) -> None:
         await app.bot.delete_webhook()
         logger.info("Webhook deleted")
 
