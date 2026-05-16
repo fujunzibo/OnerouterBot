@@ -334,6 +334,9 @@ def main() -> None:
     )
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
 
+    async def process_update(update: Update) -> None:
+        await app.process_update(update)
+
     async def webhook_handler(request: web.Request) -> web.Response:
         if request.method != "POST":
             return web.Response(status=405)
@@ -346,14 +349,14 @@ def main() -> None:
             data = await request.json()
         except Exception:
             return web.Response(status=400)
-        await app.update_queue.put(data)
+        update = Update.de_json(data, app.bot)
+        asyncio.create_task(process_update(update))
         return web.Response(status=200)
 
     async def on_startup(_app: web.Application) -> None:
-        asyncio.create_task(app.initialize())
+        await app.initialize()
         await app.bot.set_webhook(webhook_url, secret_token=WEBHOOK_SECRET)
         logger.info(f"Webhook set to {webhook_url}")
-        asyncio.create_task(app.start())
 
     async def on_shutdown(_app: web.Application) -> None:
         await app.stop()
