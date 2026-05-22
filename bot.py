@@ -407,16 +407,22 @@ def main() -> None:
         await app.bot.set_webhook(webhook_url, secret_token=WEBHOOK_SECRET)
         logger.info(f"Webhook set to {webhook_url}")
         
-        # 设置菜单按钮
-        webapp_info = WebAppInfo(url=f"{WEBHOOK_HOST.rstrip('/')}/webapp")
-        menu_button = MenuButtonWebApp(text="🛒 Store", web_app=webapp_info)
+        # 设置菜单按钮（使用 WebApp）
+        try:
+            webapp_info = WebAppInfo(url=f"{WEBHOOK_HOST.rstrip('/')}/webapp")
+            menu_button = MenuButtonWebApp(text="🛒 Store", web_app=webapp_info)
+            await app.bot.set_chat_menu_button(menu_button=menu_button)
+            logger.info("Menu button set")
+        except Exception as e:
+            logger.warning(f"Could not set menu button: {e}")
+        
+        # 设置命令列表
         await app.bot.set_my_commands([
             ("start", "Welcome & Open Store"),
             ("help", "Support & After-sales"),
             ("status", "View purchased cards"),
         ])
-        await app.bot.set_menu_button(menu_button)
-        logger.info("Menu button set")
+        logger.info("Bot commands set")
 
     async def on_shutdown(_app: web.Application) -> None:
         await app.stop()
