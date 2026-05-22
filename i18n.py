@@ -65,6 +65,26 @@ STRINGS: dict[str, dict[str, str]] = {
         "pay.invalid_product": "Invalid order. Contact the seller.",
         "pay.success": "Payment OK, order #{order}. {label}\n\nCodes (do not share):\n{body}",
         "pay.success_label": "Face value: ${face}",
+        "help.message": (
+            "🎫 **Card Store Support**\n\n"
+            "**How to buy:**\n"
+            "1. Click /start or the 🛒 Store button\n"
+            "2. Browse available cards\n"
+            "3. Select payment method and complete purchase\n"
+            "4. Your card codes will be delivered instantly\n\n"
+            "**Payment Methods:**\n"
+            "- Telegram Wallet Pay\n"
+            "- Crypto (USDT/TRC20)\n"
+            "- Credit/Debit Card\n\n"
+            "**After-sales:**\n"
+            "Contact admin for issues: @your_username\n\n"
+            "**Commands:**\n"
+            "/start - Open store\n"
+            "/help - This help message\n"
+            "/status - View purchased cards"
+        ),
+        "status.no_orders": "You have no orders yet. Use /start to browse our store!",
+        "status.orders": "📋 Your Orders:\n\n{orders}",
         "product.card_10.title": "Digital card $10",
         "product.card_10.description": "$10 denomination. Code delivered after payment.",
         "product.card_10.invoice_line": "Digital card $10",
@@ -134,6 +154,26 @@ STRINGS: dict[str, dict[str, str]] = {
         "pay.invalid_product": "طلب غير صالح. تواصل مع البائع.",
         "pay.success": "تم الدفع، الطلب #{order}. رمز(أكواد) بطاقة {label} (لا تشاركها):\n\n{body}",
         "pay.success_label": "فئة {face}$",
+        "help.message": (
+            "🎫 **دعم متجر البطاقات**\n\n"
+            "**كيفية الشراء:**\n"
+            "1. اضغط /start أو زر 🛒 المتجر\n"
+            "2. تصفح البطاقات المتاحة\n"
+            "3. اختر طريقة الدفع وأكمل الشراء\n"
+            "4. سيتم توصيل رموز البطاقات فوراً\n\n"
+            "**طرق الدفع:**\n"
+            "- Telegram Wallet Pay\n"
+            "- Crypto (USDT/TRC20)\n"
+            "- بطاقة ائتمان/خصم\n\n"
+            "**الدعم售后:**\n"
+            "للمشكلات تواصل مع المسؤول: @your_username\n\n"
+            "**الأوامر:**\n"
+            "/start - فتح المتجر\n"
+            "/help - رسالة المساعدة\n"
+            "/status - عرض البطاقات المُشتراة"
+        ),
+        "status.no_orders": "ليس لديك أي طلبات بعد. استخدم /start لتصفح المتجر!",
+        "status.orders": "📋 طلباتك:\n\n{orders}",
         "product.card_10.title": "بطاقة رقمية 10$",
         "product.card_10.description": "فئة 10$. يُرسل الرمز بعد الدفع.",
         "product.card_10.invoice_line": "بطاقة 10$",

@@ -5,7 +5,7 @@ from typing import Optional
 
 from aiohttp import web
 
-from telegram import LabeledPrice, Update
+from telegram import LabeledPrice, Update, WebAppInfo, MenuButtonWebApp
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -75,9 +75,56 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.effective_chat or not update.effective_user:
         return
     loc = _locale(update)
+    stock_summary = format_stock_summary(stock_counts_by_face())
+    
+    # 创建 WebApp 按钮
+    webapp_info = WebAppInfo(url=f"{WEBHOOK_HOST.rstrip('/')}/webapp")
+    
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🛒 Open Store", web_app=webapp_info)],
+    ])
+    
+    welcome_text = f"{tr(loc, 'start.welcome')}\n\n{stock_summary}"
     await update.effective_chat.send_message(
-        tr(loc, "start.welcome"),
-        reply_markup=main_menu_keyboard(loc),
+        welcome_text,
+        reply_markup=keyboard,
+        parse_mode="Markdown",
+    )
+
+
+async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.effective_chat or not update.effective_user:
+        return
+    loc = _locale(update)
+    help_text = tr(loc, "help.message")
+    await update.effective_chat.send_message(help_text, parse_mode="Markdown")
+
+
+async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.effective_chat or not update.effective_user:
+        return
+    loc = _locale(update)
+    user_id = update.effective_user.id
+    
+    from db import get_user_orders
+    orders = get_user_orders(user_id)
+    
+    if not orders:
+        await update.effective_chat.send_message(tr(loc, "status.no_orders"))
+        return
+    
+    orders_text = "\n\n".join([
+        f"📦 Order #{order['id']}\n"
+        f"   Amount: ${order['total']}\n"
+        f"   Status: {order['status']}\n"
+        f"   Date: {order['created_at']}"
+        for order in orders
+    ])
+    
+    await update.effective_chat.send_message(
+        tr(loc, "status.orders", orders=orders_text),
+        parse_mode="Markdown",
     )
 
 
@@ -324,6 +371,8 @@ def main() -> None:
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("lang", cmd_lang))
     app.add_handler(CommandHandler("language", cmd_lang))
+    app.add_handler(CommandHandler("help", cmd_help))
+    app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(CommandHandler("myid", cmd_myid))
     app.add_handler(CommandHandler("restock", cmd_restock))
     app.add_handler(CommandHandler("cancel", cmd_cancel))
@@ -357,16 +406,96 @@ def main() -> None:
         await app.initialize()
         await app.bot.set_webhook(webhook_url, secret_token=WEBHOOK_SECRET)
         logger.info(f"Webhook set to {webhook_url}")
+        
+        # 设置菜单按钮
+        webapp_info = WebAppInfo(url=f"{WEBHOOK_HOST.rstrip('/')}/webapp")
+        menu_button = MenuButtonWebApp(text="🛒 Store", web_app=webapp_info)
+        await app.bot.set_my_commands([
+            ("start", "Welcome & Open Store"),
+            ("help", "Support & After-sales"),
+            ("status", "View purchased cards"),
+        ])
+        await app.bot.set_menu_button(menu_button)
+        logger.info("Menu button set")
 
     async def on_shutdown(_app: web.Application) -> None:
         await app.stop()
         await app.bot.delete_webhook()
         logger.info("Webhook deleted")
 
+    # WebApp API 路由
+    async def api_stock(request: web.Request) -> web.Response:
+        stock = stock_counts_by_face()
+        return web.json_response(stock)
+    
+    async def api_create_order(request: web.Request) -> web.Response:
+        try:
+            data = await request.json()
+            items = data.get('items', [])
+            total = data.get('total', 0)
+            payment_method = data.get('paymentMethod', 'card')
+            
+            if not items or total <= 0:
+                return web.json_response({'error': 'Invalid order data'}, status=400)
+            
+            # 处理订单逻辑
+            from db import create_order, get_tokens_for_order
+            order_id = create_order(total, payment_method, data.get('telegramData'))
+            
+            # 分配卡片
+            tokens = []
+            for item in items:
+                face_value = item.get('faceValue', item.get('price', 10))
+                quantity = item.get('quantity', 1)
+                tokens.extend(get_tokens_for_order(face_value, quantity))
+            
+            return web.json_response({
+                'orderId': order_id,
+                'total': total,
+                'paymentMethod': payment_method,
+                'tokens': tokens
+            })
+        except Exception as e:
+            logger.error("API create_order error", exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
+    
+    # 静态文件服务
+    from pathlib import Path
+    webapp_dir = Path(__file__).resolve().parent / 'webapp' / 'dist'
+    
+    async def serve_webapp(request: web.Request) -> web.Response:
+        path = request.match_info.get('path', 'index.html')
+        file_path = webapp_dir / path
+        
+        if not file_path.exists():
+            file_path = webapp_dir / 'index.html'
+        
+        if not file_path.exists():
+            return web.Response(status=404)
+        
+        content_type = 'text/html'
+        if path.endswith('.js'):
+            content_type = 'application/javascript'
+        elif path.endswith('.css'):
+            content_type = 'text/css'
+        elif path.endswith('.png'):
+            content_type = 'image/png'
+        elif path.endswith('.jpg') or path.endswith('.jpeg'):
+            content_type = 'image/jpeg'
+        
+        with open(file_path, 'rb') as f:
+            content = f.read()
+        
+        return web.Response(body=content, content_type=content_type)
+    
     server = web.Application()
     server.on_startup.append(on_startup)
     server.on_shutdown.append(on_shutdown)
     server.router.add_post(WEBHOOK_PATH, webhook_handler)
+    server.router.add_get('/api/stock', api_stock)
+    server.router.add_post('/api/create-order', api_create_order)
+    server.router.add_get('/webapp/{path:.*}', serve_webapp)
+    server.router.add_get('/webapp', serve_webapp)
 
     logger.info(
         "Bot starting in webhook mode… (TELEGRAM_TRUST_ENV=%s, TELEGRAM_PROXY=%s)",

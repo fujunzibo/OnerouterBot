@@ -290,3 +290,114 @@ def fulfill_order(
         conn.commit()
 
     return (oid_str, tokens)
+
+
+def create_order(amount: int, payment_method: str, telegram_data: dict = None) -> str:
+    """
+    创建 WebApp 订单。
+    返回订单 ID 字符串。
+    """
+    user_id = telegram_data.get('user', {}).get('id') if telegram_data else 0
+    username = telegram_data.get('user', {}).get('username') if telegram_data else None
+    
+    with _connect() as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO orders (
+                user_id, username, product_payload, amount, currency, status
+            ) VALUES (?, ?, ?, ?, ?, 'pending')
+            """,
+            (user_id, username, f"webapp_{payment_method}", amount, "USD"),
+        )
+        order_id = cur.lastrowid
+        conn.commit()
+    
+    return str(order_id)
+
+
+def get_tokens_for_order(face_value_usd: int, quantity: int) -> list[str]:
+    """
+    为订单获取指定面值和数量的卡片。
+    返回卡片列表。
+    """
+    if face_value_usd not in _VALID_FACE:
+        return []
+    
+    tokens: list[str] = []
+    
+    with _connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        rows = conn.execute(
+            """
+            SELECT id, token FROM tokens
+            WHERE sold = 0 AND face_value_usd = ?
+            ORDER BY id LIMIT ?
+            """,
+            (face_value_usd, quantity),
+        ).fetchall()
+        
+        if len(rows) < quantity:
+            conn.rollback()
+            return []
+        
+        order_id = None
+        cur = conn.execute(
+            """
+            SELECT id FROM orders WHERE status = 'pending' ORDER BY id DESC LIMIT 1
+            """
+        ).fetchone()
+        if cur:
+            order_id = str(cur["id"])
+        
+        now = datetime.now(timezone.utc).isoformat()
+        
+        for r in rows:
+            conn.execute(
+                """
+                UPDATE tokens SET sold = 1, sold_to_user_id = ?, sold_order_id = ?, sold_at = ?
+                WHERE id = ?
+                """,
+                (0, order_id, now, r["id"]),
+            )
+            tokens.append(r["token"])
+        
+        if order_id:
+            conn.execute(
+                "UPDATE orders SET fulfilled_at = ?, status = 'fulfilled' WHERE id = ?",
+                (now, int(order_id)),
+            )
+        
+        conn.commit()
+    
+    return tokens
+
+
+def get_user_orders(user_id: int) -> list[dict]:
+    """
+    获取用户的所有订单。
+    返回订单列表。
+    """
+    orders: list[dict] = []
+    
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, amount, currency, status, created_at, fulfilled_at
+            FROM orders
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            """,
+            (user_id,),
+        ).fetchall()
+        
+        for row in rows:
+            orders.append({
+                'id': row['id'],
+                'total': row['amount'],
+                'currency': row['currency'],
+                'status': row['status'],
+                'created_at': row['created_at'],
+                'fulfilled_at': row['fulfilled_at']
+            })
+    
+    return orders
