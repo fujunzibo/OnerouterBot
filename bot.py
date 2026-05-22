@@ -75,7 +75,9 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.effective_chat or not update.effective_user:
         return
     loc = _locale(update)
-    stock_summary = format_stock_summary(stock_counts_by_face())
+    stock_counts = stock_counts_by_face()
+    stock_total = sum(stock_counts.values())
+    stock_summary = format_stock_summary(loc, stock_counts, stock_total)
     
     # 创建 WebApp 按钮
     webapp_info = WebAppInfo(url=f"{WEBHOOK_HOST.rstrip('/')}/webapp")
