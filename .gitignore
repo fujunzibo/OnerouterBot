@@ -3,3 +3,8 @@ data/
 __pycache__/
 *.pyc
 .venv/
+
+# WebApp build artifacts
+webapp/dist/
+webapp/node_modules/
+webapp/package-lock.json
