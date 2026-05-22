@@ -38,7 +38,7 @@ function Cart({ cart, stock, onUpdateQuantity, onRemove, onCheckout, total }) {
                 <div className="cart-item-info">
                   <h3>{item.name}</h3>
                   <p className="cart-item-price">${item.price}</p>
-                  <p className="cart-item-stock">Stock: {stock[item.id] || 0}</p>
+                  <p className="cart-item-stock">Stock: {stock[item.faceValue] || 0}</p>
                 </div>
                 <div className="cart-item-actions">
                   <button 
