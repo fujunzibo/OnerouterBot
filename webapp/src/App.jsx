@@ -87,7 +87,7 @@ function App() {
       if (existing) {
         return prev.map(item =>
           item.id === product.id
-            ? { ...item, quantity: Math.min(item.quantity + 1, stock[product.id] || 99) }
+            ? { ...item, quantity: Math.min(item.quantity + 1, stock[product.faceValue] || 99) }
             : item
         )
       }
@@ -106,7 +106,7 @@ function App() {
     }
     setCart(prev => prev.map(item =>
       item.id === productId
-        ? { ...item, quantity: Math.min(quantity, stock[item.id] || 99) }
+        ? { ...item, quantity: Math.min(quantity, stock[item.faceValue] || 99) }
         : item
     ))
   }
@@ -175,7 +175,7 @@ function App() {
               <ProductCard
                 key={product.id}
                 product={product}
-                stock={stock[product.id] || 0}
+                stock={stock[product.faceValue] || 0}
                 onAddToCart={() => addToCart(product)}
                 onBuyNow={() => handleBuyNow(product)}
               />
