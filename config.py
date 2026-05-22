@@ -36,6 +36,9 @@ WEBHOOK_PORT = int(os.environ.get("WEBHOOK_PORT", "8080").strip())
 WEBHOOK_PATH = os.environ.get("WEBHOOK_PATH", "/webhook").strip()
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "").strip() or secrets.token_hex(16)
 
+# WebApp 域名（可以和 Webhook 域名不同）
+WEBAPP_HOST = os.environ.get("WEBAPP_HOST", "").strip() or WEBHOOK_HOST
+
 
 def create_telegram_http_request():
     """配置 httpx：超时、可选代理、可选关闭 trust_env（避免误用系统代理）。"""

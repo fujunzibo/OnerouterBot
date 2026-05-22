@@ -27,6 +27,7 @@ from config import (
     WEBHOOK_PORT,
     WEBHOOK_PATH,
     WEBHOOK_SECRET,
+    WEBAPP_HOST,
     create_telegram_http_request,
 )
 from db import (
@@ -80,7 +81,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     stock_summary = format_stock_summary(loc, stock_counts, stock_total)
     
     # 创建 WebApp 按钮
-    webapp_info = WebAppInfo(url=f"{WEBHOOK_HOST.rstrip('/')}/webapp")
+    webapp_info = WebAppInfo(url=f"{WEBAPP_HOST.rstrip('/')}/webapp")
     
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
     keyboard = InlineKeyboardMarkup([
@@ -411,7 +412,7 @@ def main() -> None:
         
         # 设置菜单按钮（使用 WebApp）
         try:
-            webapp_info = WebAppInfo(url=f"{WEBHOOK_HOST.rstrip('/')}/webapp")
+            webapp_info = WebAppInfo(url=f"{WEBAPP_HOST.rstrip('/')}/webapp")
             menu_button = MenuButtonWebApp(text="🛒 Store", web_app=webapp_info)
             await app.bot.set_chat_menu_button(menu_button=menu_button)
             logger.info("Menu button set")
